@@ -1,0 +1,106 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "todo-txt",
+  "title": "todo.txt",
+  "description": "Manage your todo.txt tasks in Raycast, fully in sync with the classic CLI through the shared file system.",
+  "icon": "extension-icon.png",
+  "author": "Prezoza",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
+  "categories": [
+    "Productivity",
+    "Developer Tools",
+    "Data"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "create-new-task",
+      "title": "Create new task",
+      "description": "Add a new task to the list, and associate it with projects or contexts. ",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "task",
+          "placeholder": "Write your new task...",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "projects",
+          "placeholder": "Project(s) this task is for...",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "contexts",
+          "placeholder": "Context(s) for this task...",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "priority",
+          "placeholder": "Priority of task...",
+          "type": "dropdown",
+          "optional": true,
+          "data": [
+            {
+              "title": "A (Highest)",
+              "value": "A"
+            },
+            {
+              "title": "B",
+              "value": "B"
+            },
+            {
+              "title": "C",
+              "value": "C"
+            },
+            {
+              "title": "D",
+              "value": "D"
+            },
+            {
+              "title": "None (lowest)",
+              "value": "none"
+            }
+          ],
+          "default": "none"
+        }
+      ]
+    }
+  ],
+  "preferences": [
+    {
+      "type": "directory",
+      "name": "todoDir",
+      "title": "Todo Folder",
+      "description": "The folder where new or existing todo.txt files are.",
+      "default": "~/Documents/todo",
+      "required": true
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.103.1",
+    "@raycast/utils": "^1.17.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
+
