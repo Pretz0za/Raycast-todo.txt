@@ -101,20 +101,29 @@ export function satisfiesFilter(task: Task, filter?: TaskSearchFilter) {
 		if (filter.completed !== undefined) {
 			if (task.completed !== filter.completed) return false;
 		}
+
 		if (filter.priority) {
 			// TODO: Research how I can make a min priority filter in addition to exact priority
 			if (task.priority != filter.priority) return false;
 		}
+
 		if (filter.projects && filter.projects.size > 0) {
 			for (let project of filter.projects) {
-				if (!task.projects.has(project)) return false;
+				if (!task.projects.has(project)) {
+					if (filter.type === 'AND') return false;
+				} else if (filter.type === 'OR') return true;
 			}
 		}
+
 		if (filter.contexts && filter.contexts.size > 0) {
 			for (let context of filter.contexts) {
-				if (!task.contexts.has(context)) return false;
+				if (!task.contexts.has(context)) {
+					if (filter.type === 'AND') return false;
+				} else if (filter.type === 'OR') return true;
 			}
 		}
+
+		return filter.type === 'AND';
 	}
 	return true;
 }

@@ -10,6 +10,13 @@ import {
 	dateToString,
 } from './helpers';
 
+// NOTE: Wanted API Functionality:
+//
+//	Given a Task object :
+//		- Write to todo.txt (new if lineNumber = -1, edit otherwise)
+//		- Delete from todo.txt
+//		- Complete tasks
+
 export async function createNewTask({
 	priority,
 	projects,

@@ -10,6 +10,8 @@ export interface Task {
 	meta: Record<string, string>;
 }
 
+type FilterType = 'AND' | 'OR';
+
 export interface TaskSearchFilter {
 	// TODO: Research whether matching should be exact or partial for context and project sets
 	// Currently implemented as exact match.
@@ -17,6 +19,7 @@ export interface TaskSearchFilter {
 	priority?: string;
 	projects?: Set<string>;
 	contexts?: Set<string>;
+	type: FilterType;
 }
 
 export interface NewTaskFunctionArguments extends Omit<Task, 'line'> {
