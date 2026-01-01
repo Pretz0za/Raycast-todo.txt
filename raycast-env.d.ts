@@ -18,6 +18,8 @@ declare type Preferences = ExtensionPreferences
 declare namespace Preferences {
   /** Preferences accessible in the `create-new-task` command */
   export type CreateNewTask = ExtensionPreferences & {}
+  /** Preferences accessible in the `view-tasks` command */
+  export type ViewTasks = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -31,6 +33,13 @@ declare namespace Arguments {
   "contexts": string,
   /** Priority of task... */
   "priority": "A" | "B" | "C" | "D" | "none"
+}
+  /** Arguments passed to the `view-tasks` command */
+  export type ViewTasks = {
+  /** project1, project2, ... */
+  "projects": string,
+  /** context1, context2, ... */
+  "contexts": string
 }
 }
 

@@ -1,47 +1,21 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { Task, NewTaskFunctionArguments } from './types';
 import {
 	serializeTask,
 	parseLine,
-	filterTask,
+	satisfiesFilter,
 	deleteLine,
 	formatTodoDate,
+	dateToString,
 } from './helpers';
 
-export interface Task {
-	title: string;
-	projects: Set<string>;
-	contexts: Set<string>;
-	priority: Priority;
-	line: number;
-	completed: boolean;
-	completedAt?: string;
-}
-
-export interface NewTaskFunctionArguments
-	extends Omit<Task, 'line' | 'completed'> {
-	todoDir: string;
-}
-
-export interface GetTasksFilters {
-	completedTasks?: boolean;
-	uncompletedTasks?: boolean;
-	projects?: Set<string>;
-	contexts?: Set<string>;
-}
-
-export interface getTasksArguments {
-	filters?: GetTasksFilters;
-	todoDir: string;
-}
-
-export type Priority = 'A' | 'B' | 'C' | 'D' | undefined;
-
 export async function createNewTask({
-	title,
+	priority,
 	projects,
 	contexts,
-	priority,
+	body,
+	meta,
 	todoDir,
 }: NewTaskFunctionArguments): Promise<Task> {
 	const todoFile: string = path.join(todoDir, 'todo.txt');
@@ -51,12 +25,14 @@ export async function createNewTask({
 		const line = lines.length + 1;
 
 		const task: Task = {
-			title: title,
+			body: body,
+			creationDate: new Date(),
 			projects: projects,
 			contexts: contexts,
 			priority: priority,
 			line: line,
 			completed: false,
+			meta: meta,
 		};
 
 		await fs.appendFile(todoFile, serializeTask(task) + '\n');
@@ -70,7 +46,7 @@ export async function createNewTask({
 export async function getTasks({
 	todoDir,
 	filters,
-}: getTasksArguments): Promise<Task[]> {
+}: GetTasksArguments): Promise<Task[]> {
 	let output: Task[] = [];
 	const todoFile: string = path.join(todoDir, 'todo.txt');
 	const doneFile: string = path.join(todoDir, 'done.txt');
@@ -82,7 +58,7 @@ export async function getTasks({
 			for (const [index, line] of lines.entries()) {
 				if (line) {
 					const task = parseLine(line, index + 1);
-					if (task && filterTask(task, filters)) output.push(task);
+					if (task && satisfiesFilter(task, filters)) output.push(task);
 				}
 			}
 		}
@@ -92,7 +68,7 @@ export async function getTasks({
 			for (const [index, line] of lines.entries()) {
 				if (line) {
 					const task = parseLine(line, index + 1);
-					if (task && filterTask(task, filters)) output.push(task);
+					if (task && satisfiesFilter(task, filters)) output.push(task);
 				}
 			}
 		}

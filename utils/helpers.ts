@@ -1,14 +1,22 @@
 import fs from 'fs/promises';
-import { GetTasksFilters, Priority, Task } from './todoAPI';
+import { TaskSearchFilter, Task } from './types';
+import { Icon } from '@raycast/api';
 
-export async function appendWithLineNumber(path: string, text: string) {
-	const data = await fs.readFile(path, 'utf-8').catch(() => '');
-	const lines = data.split('\n').filter(Boolean); // existing lines
-	const newLineNumber = lines.length + 1;
+export async function appendToFile(
+	path: string,
+	text: string,
+): Promise<number> {
+	try {
+		const data = await fs.readFile(path, 'utf-8');
+		const lines = data.split('\n');
+		const newLineNumber = lines.length + 1;
 
-	await fs.appendFile(path, text + '\n');
+		await fs.appendFile(path, text + '\n');
 
-	return newLineNumber;
+		return newLineNumber;
+	} catch (err) {
+		throw err;
+	}
 }
 
 export function reduceSet<T, U>(
@@ -32,80 +40,80 @@ export function reduceSet<T, U>(
 
 export function parseLine(line: string, lineNumber: number): Task | null {
 	if (!line) return null;
-	let projects = new Set<string>();
-	let contexts = new Set<string>();
-	let priority: Priority = undefined;
-	let text: string[] = [];
+	let priority: string | undefined = undefined;
+	let body: string = '';
 	let completed: boolean = false;
-	let completedAt: string | undefined = undefined;
+	let completionDate: Date | undefined = undefined;
+	let creationDate: Date | undefined = undefined;
 
 	const tokens = line.trim().split(/\s+/);
-	for (const token of tokens) {
-		if (!completed && token === 'x') {
+
+	let idx = 0;
+
+	if (tokens[0] == 'x') {
+		// Completed task check
+		if (Date.parse(tokens[1])) {
 			completed = true;
-		} else if (!priority && /^\([A-Z]\)$/.test(token)) {
-			priority = token[1] as Priority;
-		} else if (/^\d{4}-\d{2}-\d{2}$/.test(token)) {
-			if (completed) completedAt = token;
-		} else if (token[0] === '+' && token.length > 1) {
-			projects.add(token.substring(1));
-		} else if (token[0] === '@' && token.length > 1) {
-			contexts.add(token.substring(1));
-		} else text.push(token);
+			completionDate = new Date(tokens[1]);
+			idx = 2;
+		} else {
+			// begins with invalid completion x -> no prepended metadata
+			body = line;
+			return { ...parseBody(body), body: body, line: lineNumber };
+		}
 	}
 
-	if (text.length === 0) return null;
+	if (/^\([A-Z]\)$/.test(tokens[idx])) {
+		// Priority check
+		priority = tokens[idx];
+		idx++;
+	}
 
+	if (Date.parse(tokens[idx])) {
+		// Creation date check
+		creationDate = new Date(tokens[idx]);
+		idx++;
+	}
+
+	// Remove any parsed prepended metadata from body
+	body = idx === 0 ? line : tokens.splice(0, idx).join(' ');
 	return {
-		title: text.join(' '),
-		projects: projects,
-		contexts: contexts,
-		completed: completed,
-		completedAt: completedAt,
 		line: lineNumber,
-		priority: priority,
+		body,
+		priority,
+		creationDate,
+		completed,
+		completionDate,
+		...parseBody(body),
 	};
 }
 
 export function serializeTask(task: Task | Omit<Task, 'line'>): string {
-	const projectsString =
-		task.projects.size === 0
-			? ''
-			: reduceSet<string, string>(
-					(acc, curr) => {
-						return acc + `@${curr} `;
-					},
-					' ',
-					task.projects,
-				);
-
-	const contextsString =
-		task.contexts.size === 0
-			? ''
-			: reduceSet(
-					(acc, curr) => {
-						return acc + `+${curr} `;
-					},
-					projectsString ? '' : ' ',
-					task.contexts,
-				).slice(0, -1);
-
-	return `${task.completed ? `x ${task.completedAt} ` : task.priority ? `(${task.priority}) ` : ''}${task.title}${projectsString}${contextsString}`;
+	return (
+		`${task.completed ? `x ${dateToString(task.completionDate ?? new Date())} ` : ''}` +
+		`${task.creationDate ? `${dateToString(task.creationDate)} ` : ''}` +
+		task.body
+	);
 }
 
-export function filterTask(task: Task, filters?: GetTasksFilters) {
-	if (filters) {
-		if (filters.projects) {
-			const projectIntersect = [...task.projects].map((project) =>
-				filters.projects!.has(project),
-			);
-			if (projectIntersect.length === 0) return false;
+export function satisfiesFilter(task: Task, filter?: TaskSearchFilter) {
+	if (filter) {
+		if (filter.completed !== undefined) {
+			if (task.completed !== filter.completed) return false;
 		}
-		if (filters.contexts) {
-			const contextIntersect = [...task.contexts].map((context) =>
-				filters.contexts!.has(context),
-			);
-			if (contextIntersect.length === 0) return false;
+		if (filter.priority) {
+			// TODO: Research how I can make a min priority filter in addition to exact priority
+			if (task.priority != filter.priority) return false;
+		}
+		if (filter.projects && filter.projects.size > 0) {
+			for (let project of filter.projects) {
+				if (!task.projects.has(project)) return false;
+			}
+		}
+		if (filter.contexts && filter.contexts.size > 0) {
+			for (let context of filter.contexts) {
+				if (!task.contexts.has(context)) return false;
+			}
 		}
 	}
 	return true;
@@ -123,10 +131,62 @@ export async function deleteLine(path: string, line: number) {
 	return deleted;
 }
 
-export function formatTodoDate(date: Date): string {
+export function getContextIcon(context: string): Icon {
+	switch (context.toLowerCase()) {
+		case 'home':
+			return Icon.House;
+		case 'work':
+			return Icon.Hammer;
+		case 'shopping':
+		case 'shop':
+		case 'groceries':
+			return Icon.Cart;
+		default:
+			return Icon.Tag;
+	}
+}
+
+export function parseCSVString(str: string | undefined): Set<string> {
+	return str ? new Set(str.split(', ')) : new Set();
+}
+
+export function dateToString(date: Date) {
 	const year = date.getFullYear();
 	const month = String(date.getMonth() + 1).padStart(2, '0');
 	const day = String(date.getDate()).padStart(2, '0');
 
 	return `${year}-${month}-${day}`;
+}
+
+export function parseBody(body: string): {
+	projects: Set<string>;
+	contexts: Set<string>;
+	meta: Record<string, string>;
+} {
+	let projects = new Set<string>();
+	let contexts = new Set<string>();
+	let meta: Record<string, string> = {};
+	const tokens = body.trim().split(/\s+/);
+	for (let token of tokens) {
+		if (token.length <= 1) continue;
+		let firstChar = token[0];
+		switch (firstChar) {
+			case '@':
+				contexts.add(token);
+				break;
+
+			case '+':
+				projects.add(token);
+				break;
+
+			default:
+				let parts: string[];
+				if (token.length >= 3 && (parts = token.split(':')).length == 2) {
+					meta[parts[0]] = parts[1];
+				}
+				break;
+		}
+	}
+
+	return { projects, contexts, meta };
 }
