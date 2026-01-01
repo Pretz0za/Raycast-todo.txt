@@ -18,6 +18,9 @@ import {
 //		- Delete from todo.txt
 //		- Complete tasks
 
+// Writes a task to todo.txt (or user specified todo source).
+// If task.line === -1, a new task is created and appended to the file.
+// Otherwise, it overwrites the contents of that line number.
 export async function writeTask({
 	task,
 	todoDir,
@@ -39,15 +42,20 @@ export async function writeTask({
 	}
 }
 
+// Gets all tasks that satisfy the given filter (if any).
+// Project and Context filters can be logical AND'ed or OR'ed together.
+// TODO: Can and probably should rewrite such that an array of TaskSearchFilter
+// is passed in. Each filter MUST be satisfied. This allows for CNF(?) filters.
+// e.g. (A | B | C) & (D | E) & ...  or (A & B & C) | (D & E) | ...
 export async function getTasks({
 	todoDir,
-	filters,
+	filter,
 }: GetTasksArguments): Promise<Task[]> {
 	const todoFile: string = getTodoFile(todoDir);
 	const doneFile: string = getDoneFile(todoDir);
 	let output: Task[] = [];
 
-	if (!(filters?.completed === true)) {
+	if (!(filter?.completed === true)) {
 		// !filters OR filters.completed is false/undefined -> includes uncompleted tasks
 		try {
 			const data = await fs.readFile(todoFile, 'utf-8');
@@ -55,7 +63,7 @@ export async function getTasks({
 				data
 					.split('\n')
 					.map((line, index) => parseLine(line, index + 1))
-					.filter((task) => satisfiesFilter(task, filters)),
+					.filter((task) => satisfiesFilter(task, filter)),
 			);
 		} catch (err) {
 			console.error(`getTasks: Failed to read file ${todoFile}`);
@@ -63,7 +71,7 @@ export async function getTasks({
 		}
 	}
 
-	if (!(filters?.completed === false)) {
+	if (!(filter?.completed === false)) {
 		// !filters OR filters.completed is true/undefined -> includes completed tasks
 		try {
 			const data = await fs.readFile(doneFile, 'utf-8');
@@ -71,7 +79,7 @@ export async function getTasks({
 				data
 					.split('\n')
 					.map((line, index) => parseLine(line, index + 1))
-					.filter((task) => satisfiesFilter(task, filters)),
+					.filter((task) => satisfiesFilter(task, filter)),
 			);
 		} catch (err) {
 			console.error(`getTasks: Failed to read file ${doneFile}`);
@@ -81,6 +89,7 @@ export async function getTasks({
 	return output;
 }
 
+// Marks task as completed. Moves it from todo.txt to done.txt.
 export async function completeTask({
 	task,
 	todoDir,

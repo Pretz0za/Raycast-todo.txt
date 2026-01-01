@@ -28,6 +28,6 @@ export interface WriteTaskFunctionArgs {
 }
 
 export interface GetTasksArguments {
-	filters?: TaskSearchFilter;
+	filter?: TaskSearchFilter;
 	todoDir: string;
 }
