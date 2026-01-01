@@ -7,21 +7,21 @@ export function getTodoFile(todoDir: string) {
 	return path.join(todoDir, 'todo.txt');
 }
 
+export function getDoneFile(todoDir: string) {
+	return path.join(todoDir, 'done.txt');
+}
+
 export async function appendToFile(
 	path: string,
 	text: string,
 ): Promise<number> {
-	try {
-		const data = await fs.readFile(path, 'utf-8');
-		const lines = data.split('\n');
-		const newLineNumber = lines.length + 1;
+	const data = await fs.readFile(path, 'utf-8');
+	const lines = data.split('\n');
+	const newLineNumber = lines.length + 1;
 
-		await fs.appendFile(path, text + '\n');
+	await fs.appendFile(path, text + '\n');
 
-		return newLineNumber;
-	} catch (err) {
-		throw err;
-	}
+	return newLineNumber;
 }
 
 export function reduceSet<T, U>(
@@ -43,8 +43,7 @@ export function reduceSet<T, U>(
 	return acc;
 }
 
-export function parseLine(line: string, lineNumber: number): Task | null {
-	if (!line) return null;
+export function parseLine(line: string, lineNumber: number): Task {
 	let priority: string | undefined = undefined;
 	let body: string = '';
 	let completed: boolean = false;

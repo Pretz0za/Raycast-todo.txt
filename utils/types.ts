@@ -15,7 +15,7 @@ type FilterType = 'AND' | 'OR';
 export interface TaskSearchFilter {
 	// TODO: Research whether matching should be exact or partial for context and project sets
 	// Currently implemented as exact match.
-	completed?: boolean;
+	completed?: boolean; // defined -> exclusive search, otherwise searches both completed and uncompleted
 	priority?: string;
 	projects?: Set<string>;
 	contexts?: Set<string>;
