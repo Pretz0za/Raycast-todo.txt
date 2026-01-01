@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { TaskSearchFilter, Task } from './types';
+import { TaskSearchFilter, Task, FilterType } from './types';
 import { Icon } from '@raycast/api';
 import path from 'path';
 
@@ -92,7 +92,9 @@ export function parseLine(line: string, lineNumber: number): Task {
 	};
 }
 
-export function serializeTask(task: Task | Omit<Task, 'line'>): string {
+export function serializeTask(
+	task: Task | Omit<Task, 'line' | 'projects' | 'contexts' | 'meta'>,
+): string {
 	return (
 		`${task.completed ? `x ${dateToString(task.completionDate ?? new Date())} ` : ''}` +
 		`${task.creationDate ? `${dateToString(task.creationDate)} ` : ''}` +
@@ -100,7 +102,11 @@ export function serializeTask(task: Task | Omit<Task, 'line'>): string {
 	);
 }
 
-export function satisfiesFilter(task: Task, filter?: TaskSearchFilter) {
+export function satisfiesFilter(
+	task: Task,
+	filter?: TaskSearchFilter,
+	filterType?: FilterType,
+) {
 	if (filter) {
 		if (filter.completed !== undefined) {
 			if (task.completed !== filter.completed) return false;
@@ -114,20 +120,20 @@ export function satisfiesFilter(task: Task, filter?: TaskSearchFilter) {
 		if (filter.projects && filter.projects.size > 0) {
 			for (let project of filter.projects) {
 				if (!task.projects.has(project)) {
-					if (filter.type === 'AND') return false;
-				} else if (filter.type === 'OR') return true;
+					if (filterType === 'AND') return false;
+				} else if (filterType === 'OR') return true;
 			}
 		}
 
 		if (filter.contexts && filter.contexts.size > 0) {
 			for (let context of filter.contexts) {
 				if (!task.contexts.has(context)) {
-					if (filter.type === 'AND') return false;
-				} else if (filter.type === 'OR') return true;
+					if (filterType === 'AND') return false;
+				} else if (filterType === 'OR') return true;
 			}
 		}
 
-		return filter.type === 'AND';
+		return filterType === 'AND';
 	}
 	return true;
 }

@@ -73,24 +73,11 @@
 		},
 		{
 			"name": "view-tasks",
-			"title": "View tasks",
-			"subtitle": "Filter by project(s) and/or context(s)",
-			"description": "Shows all uncompleted tasks. You may filter tasks by projects and/or contexts.",
+			"title": "Show uncompleted tasks",
+			"subtitle": "Filter by +project(s), @context(s), or phrase(s)",
+			"description": "Lists all uncompleted tasks. Search filters are comma seperated. Projects prepended with +, contexts with @. Defaults to matching all filters (logical AND), can be set to matching any filters (logical OR).",
 			"mode": "view",
-			"arguments": [
-				{
-					"name": "projects",
-					"placeholder": "project1, project2, ...",
-					"type": "text",
-					"required": false
-				},
-				{
-					"name": "contexts",
-					"placeholder": "context1, context2, ...",
-					"type": "text",
-					"required": false
-				}
-			]
+			"arguments": []
 		}
 	],
 	"preferences": [

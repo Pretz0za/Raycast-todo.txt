@@ -1,56 +1,75 @@
 import { Action, ActionPanel, Form, getPreferenceValues, Icon, LaunchProps, List, useNavigation } from "@raycast/api"
-import { getTasks, Task, Priority, createNewTask, GetTasksFilters } from "../utils/todoAPI"
+import { FilterType, Task, TaskSearchFilter, } from '../utils/types'
+import { getTasks, writeTask, } from "../utils/todoAPI"
 import { useEffect, useState } from "react"
 import { FormValidation, MutatePromise, useForm, usePromise } from "@raycast/utils"
-import { parseCSVString, parsePriorityString, reduceSet } from "../utils/helpers"
+import { parseBody, parseCSVString, reduceSet, satisfiesFilter } from "../utils/helpers"
 import { CreateTaskArguments } from "./create-new-task"
 
-export type TaskSearchFilter = {
-	projects: string,
-	contexts: string
-}
+// NOTE: Shows all uncompleted tasks upon running command. Search bar at top to enter filters in CSV format. Projects prepended by + and contexts by @. Can mark a task as complete. Can add new task. Can delete task. Can order by priority or creation date.
 
-export default function main(props: LaunchProps<{ arguments: TaskSearchFilter }>) {
+
+export default function main() {
+
 	const todoDir = getPreferenceValues<Preferences>().todoDir
-	const [filters, setFilters] = useState<GetTasksFilters>({ projects: parseCSVString(props.arguments.projects), contexts: parseCSVString(props.arguments.contexts) })
-	const { data: tasks, isLoading, revalidate, mutate } = usePromise(() => getTasks({ todoDir, filters }))
+	const [filter, setFilter] = useState<TaskSearchFilter | undefined>(undefined)
+	const [filterType, setFilterType] = useState<FilterType>('AND')
+	const { data: tasks, isLoading, revalidate, mutate } = usePromise(() => getTasks({ todoDir, }))
 
-	if (!tasks) return <List isLoading={true} />
+	const onTextSearchChange = (text: string) => {
+		// TODO: Add support for non context/project filter phrases
 
-	const tasksByPriority = new Map<Priority | 'none', Task[]>
-	for (const priority of ['A', 'B', 'C', 'D', undefined] as Priority[]) {
-		tasksByPriority.set(priority ?? 'none', tasks.filter(task => task.priority === priority))
+		setFilter({ ...parseBody(text) })
+
 	}
 
-	return <List actions={
-		<ActionPanel>
-			<Action.Push
-				title="Add Task"
-				target={<AddTaskForm revalidate={revalidate} />}
-			/>
-			<Action.Push
-				title="Change Filters"
-				target={<ChangeFiltersForm setFilters={setFilters} projects={filters.projects} contexts={filters.contexts} />}
-			/>
-		</ActionPanel>
-	} isLoading={isLoading}>
+	if (isLoading) return <List isLoading={true} />
 
-		{Object.keys(Object.fromEntries(tasksByPriority)).map(priority => (
-			<List.Section key={priority} title={priority === 'none' ? 'Low Priority' : `Priority ${priority}`}>
-				{tasksByPriority.get(priority as Priority | 'none')?.map(task => (
-					<List.Item key={task.line} title={task.title} icon={Icon.Dot}
-						accessories={
-							[
-								task.projects.size > 0 ?
-									{ text: Array.from(task.projects).join(", "), icon: Icon.Folder } : {},
-								task.contexts.size > 0 ?
-									{ text: Array.from(task.contexts).join(', '), icon: Icon.Clipboard } : {}
-							]
-						} />
-				))}
-			</List.Section>
-		))
+	// TODO: Add sorting
+
+	return <List
+		onSearchTextChange={onTextSearchChange}
+		actions={
+			<ActionPanel>
+				<Action.Push
+					title="Add Task"
+					target={<CreateTaskForm revalidate={revalidate} />}
+				/>
+			</ActionPanel>
+		} isLoading={isLoading}>
+
+		{
+			tasks?.filter(task => satisfiesFilter(task, filter, filterType)).map(task => (
+
+				<List.Item key={task.line} title={task.body} icon={Icon.Dot}
+
+					accessories={
+						Object.keys(task.meta).map(key => (
+							{ text: `${key}:${task.meta[key]}` }
+						))
+					}
+
+				/>
+
+			))
 		}
+
+		{/* {Object.keys(Object.fromEntries(tasksByPriority)).map(priority => ( */}
+		{/* 	<List.Section key={priority} title={priority === 'none' ? 'Low Priority' : `Priority ${priority}`}> */}
+		{/* 		{tasksByPriority.get(priority as Priority | 'none')?.map(task => ( */}
+		{/* 			<List.Item key={task.line} title={task.title} icon={Icon.Dot} */}
+		{/* 				accessories={ */}
+		{/* 					[ */}
+		{/* 						task.projects.size > 0 ? */}
+		{/* 							{ text: Array.from(task.projects).join(", "), icon: Icon.Folder } : {}, */}
+		{/* 						task.contexts.size > 0 ? */}
+		{/* 							{ text: Array.from(task.contexts).join(', '), icon: Icon.Clipboard } : {} */}
+		{/* 					] */}
+		{/* 				} /> */}
+		{/* 		))} */}
+		{/* 	</List.Section> */}
+		{/* )) */}
+		{/* } */}
 
 		<List.EmptyView
 			title="No tasks"
@@ -58,7 +77,7 @@ export default function main(props: LaunchProps<{ arguments: TaskSearchFilter }>
 				<ActionPanel>
 					<Action.Push
 						title="Add Task"
-						target={<AddTaskForm revalidate={revalidate} />}
+						target={<CreateTaskForm revalidate={revalidate} />}
 					/>
 				</ActionPanel>
 			}
@@ -66,26 +85,36 @@ export default function main(props: LaunchProps<{ arguments: TaskSearchFilter }>
 	</List>
 }
 
-function AddTaskForm({ revalidate }: { revalidate: () => Promise<Task[]> }) {
+function CreateTaskForm({ revalidate }: { revalidate: () => Promise<Task[]> }) {
 	const { pop } = useNavigation();
 	const todoDir = getPreferenceValues<Preferences>().todoDir
 
 	const { handleSubmit } = useForm<CreateTaskArguments>({
 		onSubmit: async function handleSubmit(values: CreateTaskArguments) {
-			await createNewTask({
-				projects: parseCSVString(values.projects),
-				contexts: parseCSVString(values.contexts),
-				priority: parsePriorityString(values.priority),
-				title: values.title,
-				todoDir
+			await writeTask({
+				todoDir,
+				task: {
+					line: -1,
+					creationDate: new Date(),
+					priority: values.priority,
+					body: values.body,
+				},
 			});
 			await revalidate();
 			pop();
 		},
 
 		validation: {
-			title: FormValidation.Required,
-			priority: FormValidation.Required
+			body: FormValidation.Required,
+			priority: (value) => {
+				if (value) {
+					if (value.length != 1)
+						return "Priority must be a single uppercase character eg [A...Z]"
+
+					if (!(value <= "Z" && value >= "A"))
+						return "Priority must be a single uppercase character eg [A...Z]"
+				}
+			}
 		}
 
 	})
@@ -98,43 +127,8 @@ function AddTaskForm({ revalidate }: { revalidate: () => Promise<Task[]> }) {
 				</ActionPanel>
 			}
 		>
-			<Form.TextField id="title" title="Task" placeholder="Enter new task" />
-			<Form.TextField id="projects" title="Project(s)" placeholder="Work, Exam, Apartment, etc..." />
-			<Form.TextField id="contexts" title="Context(s)" placeholder="Frontend, Logistics, Bugs, etc..." />
-			<Form.Dropdown defaultValue="none" id="priority" title="Priority">
-				<Form.Dropdown.Item title="A (Highest)" value="A" />
-				<Form.Dropdown.Item title="B" value="B" />
-				<Form.Dropdown.Item title="C" value="C" />
-				<Form.Dropdown.Item title="D" value="D" />
-				<Form.Dropdown.Item title="None (Lowest)" value="none" />
-			</Form.Dropdown>
+			<Form.TextField id="body" title="Task" placeholder="Add foo() function to @raycast extension @coding +myExtension" />
+			<Form.TextField id="priority" title="Priority" placeholder="A ... Z" />
 		</Form>
 	);
-}
-
-function ChangeFiltersForm({ setFilters, projects, contexts }: { setFilters: React.Dispatch<React.SetStateAction<GetTasksFilters>>, projects: Set<string> | undefined, contexts: Set<string> | undefined }) {
-	const { pop } = useNavigation()
-
-	const handleSubmit = (data: { projcets: string | undefined, contexts: string | undefined }) => {
-		setFilters({
-			projects: parseCSVString(data.projcets),
-			contexts: parseCSVString(data.contexts)
-		})
-	}
-	return <Form actions={
-		<ActionPanel>
-			<Action.SubmitForm title="Update Filters" onSubmit={handleSubmit} />
-		</ActionPanel>
-	}>
-
-		<Form.TextField id="projects" title="Project(s)" defaultValue={projects ? reduceSet<string, string>((acc, curr) => {
-			if (acc === '') return curr
-			return acc + `, ${curr}`
-		}, '', projects) : ''} />
-		<Form.TextField id="contexts" title="Context(s)" defaultValue={contexts ? reduceSet<string, string>((acc, curr) => {
-			if (acc === '') return curr
-			return acc + `, ${curr}`
-		}, '', contexts) : ''} />
-
-	</Form>
 }

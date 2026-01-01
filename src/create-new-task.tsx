@@ -3,10 +3,8 @@ import { completeTask, createNewTask, getTasks } from '../utils/todoAPI'
 import { parseCSVString, parsePriorityString } from "../utils/helpers";
 
 export interface CreateTaskArguments {
-	title: string;
-	projects: string;
-	contexts: string;
-	priority: 'A' | 'B' | 'C' | 'D' | 'none'
+	body: string;
+	priority: string;
 }
 
 export default async function main(props: LaunchProps<{ arguments: CreateTaskArguments }>) {

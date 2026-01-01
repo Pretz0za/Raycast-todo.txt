@@ -50,7 +50,9 @@ export async function writeTask({
 export async function getTasks({
 	todoDir,
 	filter,
+	filterType,
 }: GetTasksArguments): Promise<Task[]> {
+	// TODO: Add a sorting parameter. e.g. priority, creation date, etc...
 	const todoFile: string = getTodoFile(todoDir);
 	const doneFile: string = getDoneFile(todoDir);
 	let output: Task[] = [];
@@ -63,7 +65,7 @@ export async function getTasks({
 				data
 					.split('\n')
 					.map((line, index) => parseLine(line, index + 1))
-					.filter((task) => satisfiesFilter(task, filter)),
+					.filter((task) => satisfiesFilter(task, filter, filterType)),
 			);
 		} catch (err) {
 			console.error(`getTasks: Failed to read file ${todoFile}`);
@@ -79,7 +81,7 @@ export async function getTasks({
 				data
 					.split('\n')
 					.map((line, index) => parseLine(line, index + 1))
-					.filter((task) => satisfiesFilter(task, filter)),
+					.filter((task) => satisfiesFilter(task, filter, filterType)),
 			);
 		} catch (err) {
 			console.error(`getTasks: Failed to read file ${doneFile}`);
