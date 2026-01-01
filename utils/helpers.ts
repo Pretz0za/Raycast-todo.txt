@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import { TaskSearchFilter, Task } from './types';
 import { Icon } from '@raycast/api';
+import path from 'path';
+
+export function getTodoFile(todoDir: string) {
+	return path.join(todoDir, 'todo.txt');
+}
 
 export async function appendToFile(
 	path: string,

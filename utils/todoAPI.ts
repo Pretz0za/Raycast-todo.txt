@@ -1,13 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Task, NewTaskFunctionArguments } from './types';
+import { GetTasksArguments, Task, WriteTaskFunctionArgs } from './types';
 import {
 	serializeTask,
 	parseLine,
 	satisfiesFilter,
 	deleteLine,
-	formatTodoDate,
 	dateToString,
+	getTodoFile,
 } from './helpers';
 
 // NOTE: Wanted API Functionality:
@@ -17,36 +17,24 @@ import {
 //		- Delete from todo.txt
 //		- Complete tasks
 
-export async function createNewTask({
-	priority,
-	projects,
-	contexts,
-	body,
-	meta,
+export async function writeTask({
+	task,
 	todoDir,
-}: NewTaskFunctionArguments): Promise<Task> {
-	const todoFile: string = path.join(todoDir, 'todo.txt');
+}: WriteTaskFunctionArgs): Promise<void> {
+	const todoFile = getTodoFile(todoDir);
 	try {
-		const data = await fs.readFile(todoFile, 'utf-8').catch(() => '');
-		const lines = data.split('\n');
-		const line = lines.length + 1;
-
-		const task: Task = {
-			body: body,
-			creationDate: new Date(),
-			projects: projects,
-			contexts: contexts,
-			priority: priority,
-			line: line,
-			completed: false,
-			meta: meta,
-		};
-
-		await fs.appendFile(todoFile, serializeTask(task) + '\n');
-		return task;
-	} catch (error) {
-		console.error('createNewTask:', error);
-		throw error;
+		if (task.line === -1) {
+			await fs.appendFile(todoFile, serializeTask(task), 'utf-8');
+			return;
+		} else {
+			const data = await fs.readFile(todoFile, 'utf-8');
+			let lines = data.split('\n');
+			lines[task.line - 1] = serializeTask(task);
+			await fs.writeFile(todoFile, lines.join('\n'), 'utf-8');
+		}
+	} catch (err) {
+		console.error(`writeTask: failed to write to file ${todoFile}`);
+		throw err;
 	}
 }
 

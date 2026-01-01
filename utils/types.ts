@@ -22,7 +22,8 @@ export interface TaskSearchFilter {
 	type: FilterType;
 }
 
-export interface NewTaskFunctionArguments extends Omit<Task, 'line'> {
+export interface WriteTaskFunctionArgs {
+	task: Task;
 	todoDir: string;
 }
 
