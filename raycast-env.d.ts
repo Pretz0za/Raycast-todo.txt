@@ -35,11 +35,6 @@ declare namespace Arguments {
   "priority": "A" | "B" | "C" | "D" | "none"
 }
   /** Arguments passed to the `view-tasks` command */
-  export type ViewTasks = {
-  /** project1, project2, ... */
-  "projects": string,
-  /** context1, context2, ... */
-  "contexts": string
-}
+  export type ViewTasks = {}
 }
 

@@ -61,10 +61,16 @@ export async function getTasks({
 		// !filters OR filters.completed is false/undefined -> includes uncompleted tasks
 		try {
 			const data = await fs.readFile(todoFile, 'utf-8');
-			output.concat(
+			output = output.concat(
 				data
 					.split('\n')
-					.map((line, index) => parseLine(line, index + 1))
+					.map((line, index) =>
+						parseLine(line, index + 1, {
+							// Parts included in body
+							projects: true,
+							contexts: true,
+						}),
+					)
 					.filter((task) => satisfiesFilter(task, filter, filterType)),
 			);
 		} catch (err) {
@@ -77,10 +83,16 @@ export async function getTasks({
 		// !filters OR filters.completed is true/undefined -> includes completed tasks
 		try {
 			const data = await fs.readFile(doneFile, 'utf-8');
-			output.concat(
+			output = output.concat(
 				data
 					.split('\n')
-					.map((line, index) => parseLine(line, index + 1))
+					.map((line, index) =>
+						parseLine(line, index + 1, {
+							// Parts included in body
+							projects: true,
+							contexts: true,
+						}),
+					)
 					.filter((task) => satisfiesFilter(task, filter, filterType)),
 			);
 		} catch (err) {
@@ -88,6 +100,7 @@ export async function getTasks({
 			throw err;
 		}
 	}
+
 	return output;
 }
 
@@ -95,7 +108,7 @@ export async function getTasks({
 export async function completeTask({
 	task,
 	todoDir,
-}: WriteTaskFunctionArgs): Promise<Task> {
+}: WriteTaskFunctionArgs): Promise<void> {
 	const todoFile: string = path.join(todoDir, 'todo.txt');
 	const doneFile: string = path.join(todoDir, 'done.txt');
 
@@ -116,6 +129,4 @@ export async function completeTask({
 		console.error(`completeTask: Failed to write to file ${doneFile}`);
 		throw err;
 	}
-
-	return task;
 }
