@@ -4,9 +4,11 @@ import {
 	Task,
 	FilterType,
 	TaskTitlePreferences,
+	GroupingKey,
 } from './types';
 import { Icon } from '@raycast/api';
 import path from 'path';
+import Fuse from 'fuse.js';
 
 export function getTodoFile(todoDir: string) {
 	return path.join(todoDir, 'todo.txt');
@@ -58,8 +60,8 @@ export function parseLine(
 	let completed: boolean = false;
 	let completionDate: Date | undefined = undefined;
 	let creationDate: Date | undefined = undefined;
-	let projects: Set<string> = new Set();
-	let contexts: Set<string> = new Set();
+	let projects: string[] = [];
+	let contexts: string[] = [];
 	let meta: Record<string, string> = {};
 
 	const tokens = line.trim().split(/\s+/);
@@ -96,12 +98,12 @@ export function parseLine(
 		let firstChar = token[0];
 		switch (firstChar) {
 			case '@':
-				contexts.add(token);
+				contexts.push(token);
 				if (preferences.contexts) body.push(token);
 				break;
 
 			case '+':
-				projects.add(token);
+				projects.push(token);
 				if (preferences.projects) body.push(token);
 				break;
 
@@ -161,17 +163,25 @@ export function satisfiesFilter(
 			if (task.priority != filter.priority) return false;
 		}
 
-		if (filter.projects && filter.projects.size > 0) {
+		if (filter.projects && filter.projects.length > 0) {
 			for (let project of filter.projects) {
-				if (!task.projects.has(project)) {
+				if (task.projects.indexOf(project) === -1) {
 					if (filterType === 'AND') return false;
 				} else if (filterType === 'OR') return true;
 			}
 		}
 
-		if (filter.contexts && filter.contexts.size > 0) {
+		if (filter.contexts && filter.contexts.length > 0) {
 			for (let context of filter.contexts) {
-				if (!task.contexts.has(context)) {
+				if (task.contexts.indexOf(context) === -1) {
+					if (filterType === 'AND') return false;
+				} else if (filterType === 'OR') return true;
+			}
+		}
+
+		if (filter.meta && Object.keys(filter.meta).length > 0) {
+			for (let key of Object.keys(filter.meta)) {
+				if (filter.meta[key] !== task.meta[key]) {
 					if (filterType === 'AND') return false;
 				} else if (filterType === 'OR') return true;
 			}
@@ -209,10 +219,6 @@ export function getContextIcon(context: string): Icon {
 	}
 }
 
-export function parseCSVString(str: string | undefined): Set<string> {
-	return str ? new Set(str.split(', ')) : new Set();
-}
-
 export function dateToString(date: Date) {
 	const year = date.getFullYear();
 	const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -222,8 +228,8 @@ export function dateToString(date: Date) {
 }
 
 export function parseSearchQuery(query: string) {
-	let projects: Set<string> = new Set();
-	let contexts: Set<string> = new Set();
+	let projects: string[] = [];
+	let contexts: string[] = [];
 	let meta: Record<string, string> = {};
 	let tokens = query.split(/\s+/);
 	for (let token of tokens) {
@@ -231,11 +237,11 @@ export function parseSearchQuery(query: string) {
 		let firstChar = token[0];
 		switch (firstChar) {
 			case '@':
-				contexts.add(token);
+				contexts.push(token);
 				break;
 
 			case '+':
-				projects.add(token);
+				projects.push(token);
 				break;
 
 			default:
@@ -252,4 +258,147 @@ export function parseSearchQuery(query: string) {
 	}
 
 	return { projects, contexts, meta };
+}
+
+export function filterTasks(
+	tasks: Task[] | undefined,
+	query: string,
+	filterType: FilterType,
+): Task[] {
+	if (!tasks) return [];
+	if (!query) return tasks;
+	let newFilter = parseSearchQuery(query);
+	let results: Task[] = [];
+	if (
+		newFilter.contexts.length ||
+		Object.keys(newFilter.meta).length ||
+		newFilter.projects.length
+	) {
+		results = tasks.filter((task) =>
+			satisfiesFilter(task, newFilter, filterType),
+		);
+	}
+	if (results.length === 0) {
+		const fuse = new Fuse(tasks, {
+			threshold: 0.4,
+			keys: ['contexts', 'projects', 'meta', 'body'],
+		});
+		results = fuse.search(query).map((result) => {
+			return result.item;
+		});
+	}
+
+	return results;
+}
+
+export function groupTasks(
+	tasks: Task[],
+	key: GroupingKey,
+	orderingType: 'ASCENDING' | 'DECENDING',
+): { order: string[]; items: Record<string, Task[]> } {
+	let order: string[] = [];
+	let items: Record<string, Task[]> = {};
+
+	switch (key) {
+		case 'PRIORITY': {
+			for (let task of tasks) {
+				let priority = task.priority ?? '';
+				if (items[priority] === undefined) {
+					order.push(priority);
+					items[priority] = [];
+				}
+				items[priority].push(task);
+			}
+
+			order.sort();
+
+			break;
+		}
+
+		case 'CREATION_DATE': {
+			let tempOrder: Date[] = [];
+			let emptyExistsFlag = false;
+			for (let task of tasks) {
+				let date: Date | '' = task.creationDate ?? '';
+				let dateString = getDateBucketLabel(date);
+				if (items[dateString] === undefined) {
+					items[dateString] = [];
+					if (dateString) tempOrder.push(date as Date);
+					else if (!emptyExistsFlag) emptyExistsFlag = true;
+				}
+				items[dateString].push(task);
+			}
+
+			// TODO: Add reverse sorting
+			tempOrder.sort();
+			order = tempOrder.map((date) => getDateBucketLabel(date));
+			if (emptyExistsFlag) order.push('');
+			order.sort();
+
+			break;
+		}
+
+		case 'COMPLETION_DATE': {
+			let tempOrder: Date[] = [];
+			let emptyExistsFlag = false;
+			for (let task of tasks) {
+				let date: Date | '' = task.completionDate ?? '';
+				let dateString = getDateBucketLabel(date);
+				if (items[dateString] === undefined) {
+					items[dateString] = [];
+					if (dateString) tempOrder.push(date as Date);
+					else if (!emptyExistsFlag) emptyExistsFlag = true;
+				}
+				items[dateString].push(task);
+			}
+
+			// TODO: Add reverse sorting
+			tempOrder.sort();
+			order = tempOrder.map((date) => getDateBucketLabel(date));
+			if (emptyExistsFlag) order.push('');
+			order.sort();
+
+			break;
+		}
+
+		case 'DUE_DATE': {
+			let tempOrder: Date[] = [];
+			let emptyExistsFlag = false;
+			for (let task of tasks) {
+				let date: Date | '' = Date.parse(task.meta['due'])
+					? new Date(task.meta['due'])
+					: '';
+				let dateString = getDateBucketLabel(date);
+				if (items[dateString] === undefined) {
+					items[dateString] = [];
+					if (dateString) tempOrder.push(date as Date);
+					else if (!emptyExistsFlag) emptyExistsFlag = true;
+				}
+				items[dateString].push(task);
+			}
+
+			// TODO: Add reverse sorting
+			tempOrder.sort();
+			order = tempOrder.map((date) => getDateBucketLabel(date));
+			if (emptyExistsFlag) order.push('');
+			order.sort();
+
+			break;
+		}
+		case 'PROJECT':
+		case 'CONTEXT':
+
+		default:
+			break;
+	}
+
+	return { order: [], items: {} };
+}
+
+export function getDateBucketLabel(date: Date | '') {
+	if (date === '') return '';
+	return date.toLocaleString('default', {
+		year: 'numeric',
+		month: 'long',
+	});
 }

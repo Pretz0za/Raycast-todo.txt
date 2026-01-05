@@ -4,8 +4,8 @@ export interface Task {
 	priority?: string;
 	completionDate?: Date;
 	creationDate?: Date;
-	projects: Set<string>;
-	contexts: Set<string>;
+	projects: string[];
+	contexts: string[];
 	body: string; // This includes everything that would come AFTER creationDate.
 	meta: Record<string, string>;
 }
@@ -18,8 +18,9 @@ export interface TaskSearchFilter {
 	// TODO: Add meta search
 	completed?: boolean; // defined -> exclusive search, otherwise searches both completed and uncompleted
 	priority?: string;
-	projects?: Set<string>;
-	contexts?: Set<string>;
+	projects?: string[];
+	contexts?: string[];
+	meta?: Record<string, string>;
 }
 
 export interface WriteTaskFunctionArgs {
@@ -43,3 +44,11 @@ export interface TaskTitlePreferences {
 	contexts?: boolean;
 	meta?: boolean;
 }
+
+export type GroupingKey =
+	| 'PRIORITY'
+	| 'CREATION_DATE'
+	| 'COMPLETION_DATE'
+	| 'DUE_DATE'
+	| 'PROJECT'
+	| 'CONTEXT';
