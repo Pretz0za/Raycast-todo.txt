@@ -5,6 +5,8 @@ import {
 	FilterType,
 	TaskTitlePreferences,
 	GroupingKey,
+	OrderingKey,
+	TaskBuckets,
 } from './types';
 import { Icon } from '@raycast/api';
 import path from 'path';
@@ -295,110 +297,223 @@ export function groupTasks(
 	tasks: Task[],
 	key: GroupingKey,
 	orderingType: 'ASCENDING' | 'DECENDING',
-): { order: string[]; items: Record<string, Task[]> } {
-	let order: string[] = [];
-	let items: Record<string, Task[]> = {};
+): TaskBuckets {
+	let bucketOrder: string[] = [];
+	let buckets: Record<string, Task[]> = {};
+	let nullBucketExists = false;
+	let nullBucketString = '';
 
 	switch (key) {
 		case 'PRIORITY': {
+			nullBucketString = 'NO PRIORITY';
 			for (let task of tasks) {
-				let priority = task.priority ?? '';
-				if (items[priority] === undefined) {
-					order.push(priority);
-					items[priority] = [];
+				let priority = task.priority
+					? `PRIORITY ${task.priority}`
+					: nullBucketString;
+				if (buckets[priority] === undefined) {
+					buckets[priority] = [];
+					if (priority !== nullBucketString) bucketOrder.push(priority);
+					else if (!nullBucketExists) nullBucketExists = true;
 				}
-				items[priority].push(task);
+				buckets[priority].push(task);
 			}
 
-			order.sort();
+			bucketOrder.sort();
+
+			if (nullBucketExists) bucketOrder.push(nullBucketString);
+
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'CREATION_DATE', orderingType);
+			}
 
 			break;
 		}
 
 		case 'CREATION_DATE': {
 			let tempOrder: Date[] = [];
-			let emptyExistsFlag = false;
+			nullBucketString = 'NO CREATION DATE';
 			for (let task of tasks) {
 				let date: Date | '' = task.creationDate ?? '';
-				let dateString = getDateBucketLabel(date);
-				if (items[dateString] === undefined) {
-					items[dateString] = [];
-					if (dateString) tempOrder.push(date as Date);
-					else if (!emptyExistsFlag) emptyExistsFlag = true;
+				let dateString =
+					date === '' ? nullBucketString : getDateBucketLabel(date);
+				if (buckets[dateString] === undefined) {
+					buckets[dateString] = [];
+					if (dateString !== nullBucketString) tempOrder.push(date as Date);
+					else if (!nullBucketExists) nullBucketExists = true;
 				}
-				items[dateString].push(task);
+				buckets[dateString].push(task);
 			}
 
 			// TODO: Add reverse sorting
 			tempOrder.sort();
-			order = tempOrder.map((date) => getDateBucketLabel(date));
-			if (emptyExistsFlag) order.push('');
-			order.sort();
+			bucketOrder = tempOrder.map((date) => getDateBucketLabel(date));
+			if (nullBucketExists) bucketOrder.push(nullBucketString);
+			bucketOrder.sort();
+
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+			}
 
 			break;
 		}
 
 		case 'COMPLETION_DATE': {
 			let tempOrder: Date[] = [];
-			let emptyExistsFlag = false;
+			nullBucketString = 'UNCOMPLETED';
 			for (let task of tasks) {
 				let date: Date | '' = task.completionDate ?? '';
-				let dateString = getDateBucketLabel(date);
-				if (items[dateString] === undefined) {
-					items[dateString] = [];
-					if (dateString) tempOrder.push(date as Date);
-					else if (!emptyExistsFlag) emptyExistsFlag = true;
+				let dateString =
+					date === '' ? nullBucketString : getDateBucketLabel(date);
+				if (buckets[dateString] === undefined) {
+					buckets[dateString] = [];
+					if (dateString !== nullBucketString) tempOrder.push(date as Date);
+					else if (!nullBucketExists) nullBucketExists = true;
 				}
-				items[dateString].push(task);
+				buckets[dateString].push(task);
 			}
 
 			// TODO: Add reverse sorting
 			tempOrder.sort();
-			order = tempOrder.map((date) => getDateBucketLabel(date));
-			if (emptyExistsFlag) order.push('');
-			order.sort();
+			bucketOrder = tempOrder.map((date) => getDateBucketLabel(date));
+			if (nullBucketExists) bucketOrder.push(nullBucketString);
+			bucketOrder.sort();
+
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+			}
 
 			break;
 		}
 
 		case 'DUE_DATE': {
 			let tempOrder: Date[] = [];
-			let emptyExistsFlag = false;
+			nullBucketString = 'NO DUE DATE';
 			for (let task of tasks) {
 				let date: Date | '' = Date.parse(task.meta['due'])
 					? new Date(task.meta['due'])
 					: '';
-				let dateString = getDateBucketLabel(date);
-				if (items[dateString] === undefined) {
-					items[dateString] = [];
-					if (dateString) tempOrder.push(date as Date);
-					else if (!emptyExistsFlag) emptyExistsFlag = true;
+				let dateString =
+					date === '' ? nullBucketString : getDateBucketLabel(date);
+				if (buckets[dateString] === undefined) {
+					buckets[dateString] = [];
+					if (dateString !== nullBucketString) tempOrder.push(date as Date);
+					else if (!nullBucketExists) nullBucketExists = true;
 				}
-				items[dateString].push(task);
+				buckets[dateString].push(task);
 			}
 
 			// TODO: Add reverse sorting
 			tempOrder.sort();
-			order = tempOrder.map((date) => getDateBucketLabel(date));
-			if (emptyExistsFlag) order.push('');
-			order.sort();
+			bucketOrder = tempOrder.map((date) => getDateBucketLabel(date));
+			if (nullBucketExists) bucketOrder.push(nullBucketString);
+			bucketOrder.sort();
+
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+			}
 
 			break;
 		}
-		case 'PROJECT':
-		case 'CONTEXT':
+		case 'PROJECT': {
+			for (let task of tasks) {
+				for (let project of task.projects) {
+					if (buckets[project] === undefined) {
+						bucketOrder.push(project);
+						buckets[project] = [];
+					}
+					buckets[project].push(task);
+				}
+			}
+
+			// Sorts by the number of tasks in each bucket
+			bucketOrder.sort();
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+			}
+		}
+
+		case 'CONTEXT': {
+			for (let task of tasks) {
+				for (let context of task.contexts) {
+					if (buckets[context] === undefined) {
+						bucketOrder.push(context);
+						buckets[context] = [];
+					}
+					buckets[context].push(task);
+				}
+			}
+
+			// Sorts by the number of tasks in each bucket
+			bucketOrder.sort();
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+			}
+			break;
+		}
 
 		default:
+			bucketOrder = [''];
+			buckets = { '': tasks };
+			for (let bucket of bucketOrder) {
+				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+			}
 			break;
 	}
 
-	return { order: [], items: {} };
+	return { bucketOrder, buckets };
 }
 
-export function getDateBucketLabel(date: Date | '') {
-	if (date === '') return '';
+export function getDateBucketLabel(date: Date) {
 	return date.toLocaleString('default', {
 		year: 'numeric',
 		month: 'long',
 	});
+}
+
+export function orderTasks(
+	tasks: Task[],
+	orderingKey: OrderingKey,
+	orderingType: 'ASCENDING' | 'DECENDING',
+) {
+	let orderingModifer = orderingType === 'ASCENDING' ? 1 : -1;
+	switch (orderingKey) {
+		case 'PRIORITY':
+			tasks.sort((a, b) => {
+				if (!a.priority && !b.priority) return 0;
+				if (!a.priority) return 1 * orderingModifer;
+				if (!b.priority) return -1 * orderingModifer;
+
+				return a.priority.localeCompare(b.priority) * orderingModifer;
+			});
+			break;
+
+		case 'CREATION_DATE':
+			tasks.sort((a, b) => {
+				if (!a.creationDate && !b.creationDate) return 0;
+				if (!a.creationDate) return 1 * orderingModifer;
+				if (!b.creationDate) return -1 * orderingModifer;
+
+				return (
+					(a.creationDate!.getTime() - b.creationDate!.getTime()) *
+					orderingModifer
+				);
+			});
+			break;
+
+		case 'DUE_DATE':
+			tasks.sort((a, b) => {
+				let aDate = Date.parse(a.meta['due']);
+				let bDate = Date.parse(b.meta['due']);
+				if (!aDate && !bDate) return 0;
+				if (!aDate) return 1 * orderingModifer;
+				if (!bDate) return -1 * orderingModifer;
+
+				return (aDate - bDate) * orderingModifer;
+			});
+
+			break;
+
+		default:
+			break;
+	}
 }

@@ -1,46 +1,62 @@
 import { Action, ActionPanel, Form, getPreferenceValues, Icon, LaunchProps, List, useNavigation } from "@raycast/api"
-import { FilterType, Task, TaskSearchFilter, } from '../utils/types'
+import { FilterType, Task, TaskBuckets, TaskSearchFilter, } from '../utils/types'
 import { getTasks, writeTask, } from "../utils/todoAPI"
 import { useEffect, useMemo, useState } from "react"
 import { FormValidation, MutatePromise, useForm, usePromise } from "@raycast/utils"
-import { filterTasks, parseLine, parseSearchQuery, reduceSet, satisfiesFilter } from "../utils/helpers"
+import { filterTasks, groupTasks, parseLine, parseSearchQuery, reduceSet, satisfiesFilter } from "../utils/helpers"
 import { CreateTaskArguments } from "./create-new-task"
 import Fuse from "fuse.js"
 
 
 // NOTE: Shows all uncompleted tasks upon running command. Search bar at top to enter filters in CSV format. Projects prepended by + and contexts by @. Can mark a task as complete. Can add new task. Can delete task. Can order by priority or creation date.
 
-export function TaskComponents(tasks: Task[]) {
-	return tasks.map(task => (
-		<List.Item key={`${Number(task.completed)}-${task.line}`} title={task.body} icon={Icon.Dot}
-			accessories={
-				Object.keys(task.meta).map(key => (
-					{ text: `${key}:${task.meta[key]}` }
-				))
-			}
-			actions={
-				<ActionPanel title="Action Panel Title">
-					<Action title="Log info" onAction={() => {
-						console.log(task)
-					}} />
-				</ActionPanel>
-			}
-		/>
+export function TaskComponents(buckets: TaskBuckets) {
+
+	return buckets.bucketOrder.map(bucket => (
+		<List.Section key={bucket} title={bucket}>
+			{buckets.buckets[bucket].map(task => (
+
+
+				<List.Item key={`${bucket}-${Number(task.completed)}-${task.line}`} title={task.body} icon={Icon.Dot}
+					accessories={
+						Object.keys(task.meta).map(key => (
+							{ text: `${key}:${task.meta[key]}` }
+						))
+					}
+					actions={
+						<ActionPanel title="Action Panel Title">
+							<Action title="Log info" onAction={() => {
+								console.log(task)
+							}} />
+						</ActionPanel>
+					}
+				/>
+
+
+			))}
+		</List.Section>
 	))
 }
 
 export default function main() {
 
 	const todoDir = getPreferenceValues<Preferences>().todoDir
-	const [filter, setFilter] = useState<TaskSearchFilter | undefined>(undefined)
+	const [filter, setFilter] = useState<TaskSearchFilter | undefined>({ completed: false })
 	const [filterType, setFilterType] = useState<FilterType>('AND')
 	const [query, setQuery] = useState<string>('');
 
 	const { data: tasks, isLoading, revalidate, mutate } = usePromise(
-		async () => await getTasks({ todoDir, filter: {} }))
+		async () => await getTasks({ todoDir, filter, filterType }))
 
 	const visibleTasks = useMemo(
 		() => filterTasks(tasks, query, filterType), [tasks, query, filterType])
+
+	const taskBuckets = useMemo(
+		() => {
+			console.log('rebuckted tasks')
+			return groupTasks(visibleTasks, 'PRIORITY', 'ASCENDING')
+		}, [visibleTasks])
+
 
 	// List of items from strict equality filtering
 
@@ -57,7 +73,7 @@ export default function main() {
 			</ActionPanel>
 		} isLoading={isLoading}>
 
-		{TaskComponents(visibleTasks)}
+		{TaskComponents(taskBuckets)}
 
 		<List.EmptyView
 			title="No tasks"

@@ -67,6 +67,7 @@ export async function getTasks({
 					.map((line, index) =>
 						parseLine(line, index + 1, {
 							// Parts included in body
+							priority: true,
 							projects: true,
 							contexts: true,
 						}),
@@ -89,6 +90,7 @@ export async function getTasks({
 					.map((line, index) =>
 						parseLine(line, index + 1, {
 							// Parts included in body
+							priority: true,
 							projects: true,
 							contexts: true,
 						}),

@@ -45,6 +45,11 @@ export interface TaskTitlePreferences {
 	meta?: boolean;
 }
 
+export type TaskBuckets = {
+	buckets: Record<string, Task[]>;
+	bucketOrder: string[];
+};
+
 export type GroupingKey =
 	| 'PRIORITY'
 	| 'CREATION_DATE'
@@ -52,3 +57,5 @@ export type GroupingKey =
 	| 'DUE_DATE'
 	| 'PROJECT'
 	| 'CONTEXT';
+
+export type OrderingKey = 'PRIORITY' | 'CREATION_DATE' | 'DUE_DATE';
