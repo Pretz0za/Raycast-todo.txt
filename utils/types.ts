@@ -58,4 +58,16 @@ export type GroupingKey =
 	| 'PROJECT'
 	| 'CONTEXT';
 
-export type OrderingKey = 'PRIORITY' | 'CREATION_DATE' | 'DUE_DATE';
+export type OrderingKey =
+	| 'PRIORITY'
+	| 'CREATION_DATE'
+	| 'COMPLETION_DATE'
+	| 'DUE_DATE';
+
+export type DropdownStateChangeLayerProps<T> = {
+	setState: React.Dispatch<React.SetStateAction<T>>;
+	options: T[];
+	optionStrings: string[];
+	initialValue?: string;
+	valueTitle: string;
+};

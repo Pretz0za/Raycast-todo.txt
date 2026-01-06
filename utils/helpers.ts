@@ -294,14 +294,17 @@ export function filterTasks(
 }
 
 export function groupTasks(
-	tasks: Task[],
+	tasks: Task[] | undefined,
 	key: GroupingKey,
-	orderingType: 'ASCENDING' | 'DECENDING',
+	orderingKey: OrderingKey | null,
+	orderingType: 'ASCENDING' | 'DESCENDING',
 ): TaskBuckets {
+	if (!tasks) return { bucketOrder: [], buckets: {} };
 	let bucketOrder: string[] = [];
 	let buckets: Record<string, Task[]> = {};
 	let nullBucketExists = false;
 	let nullBucketString = '';
+	let orderingModifier = orderingType === 'ASCENDING' ? 1 : -1;
 
 	switch (key) {
 		case 'PRIORITY': {
@@ -318,12 +321,18 @@ export function groupTasks(
 				buckets[priority].push(task);
 			}
 
-			bucketOrder.sort();
+			bucketOrder.sort((a, b) => a.localeCompare(b) * orderingModifier);
 
 			if (nullBucketExists) bucketOrder.push(nullBucketString);
 
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'CREATION_DATE', orderingType);
+				orderTasks(
+					buckets[bucket],
+					!orderingKey || orderingKey === 'PRIORITY'
+						? 'CREATION_DATE'
+						: orderingKey,
+					orderingType,
+				);
 			}
 
 			break;
@@ -344,14 +353,16 @@ export function groupTasks(
 				buckets[dateString].push(task);
 			}
 
-			// TODO: Add reverse sorting
-			tempOrder.sort();
+			tempOrder.sort((a, b) => (a.getTime() - b.getTime()) * orderingModifier);
 			bucketOrder = tempOrder.map((date) => getDateBucketLabel(date));
 			if (nullBucketExists) bucketOrder.push(nullBucketString);
-			bucketOrder.sort();
 
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+				orderTasks(
+					buckets[bucket],
+					orderingKey || 'CREATION_DATE',
+					orderingType,
+				);
 			}
 
 			break;
@@ -372,14 +383,16 @@ export function groupTasks(
 				buckets[dateString].push(task);
 			}
 
-			// TODO: Add reverse sorting
-			tempOrder.sort();
+			tempOrder.sort((a, b) => (a.getTime() - b.getTime()) * orderingModifier);
 			bucketOrder = tempOrder.map((date) => getDateBucketLabel(date));
 			if (nullBucketExists) bucketOrder.push(nullBucketString);
-			bucketOrder.sort();
 
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+				orderTasks(
+					buckets[bucket],
+					orderingKey ?? 'CREATION_DATE',
+					orderingType,
+				);
 			}
 
 			break;
@@ -403,17 +416,17 @@ export function groupTasks(
 			}
 
 			// TODO: Add reverse sorting
-			tempOrder.sort();
+			tempOrder.sort((a, b) => (a.getTime() - b.getTime()) * orderingModifier);
 			bucketOrder = tempOrder.map((date) => getDateBucketLabel(date));
 			if (nullBucketExists) bucketOrder.push(nullBucketString);
-			bucketOrder.sort();
 
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+				orderTasks(buckets[bucket], orderingKey || 'DUE_DATE', orderingType);
 			}
 
 			break;
 		}
+
 		case 'PROJECT': {
 			for (let task of tasks) {
 				for (let project of task.projects) {
@@ -426,9 +439,9 @@ export function groupTasks(
 			}
 
 			// Sorts by the number of tasks in each bucket
-			bucketOrder.sort();
+			bucketOrder.sort((a, b) => a.localeCompare(b) * orderingModifier);
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+				orderTasks(buckets[bucket], orderingKey || 'PRIORITY', orderingType);
 			}
 		}
 
@@ -444,9 +457,9 @@ export function groupTasks(
 			}
 
 			// Sorts by the number of tasks in each bucket
-			bucketOrder.sort();
+			bucketOrder.sort((a, b) => a.localeCompare(b) * orderingModifier);
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+				orderTasks(buckets[bucket], orderingKey || 'PRIORITY', orderingType);
 			}
 			break;
 		}
@@ -455,7 +468,7 @@ export function groupTasks(
 			bucketOrder = [''];
 			buckets = { '': tasks };
 			for (let bucket of bucketOrder) {
-				orderTasks(buckets[bucket], 'PRIORITY', orderingType);
+				orderTasks(buckets[bucket], orderingKey || 'PRIORITY', orderingType);
 			}
 			break;
 	}
@@ -473,7 +486,7 @@ export function getDateBucketLabel(date: Date) {
 export function orderTasks(
 	tasks: Task[],
 	orderingKey: OrderingKey,
-	orderingType: 'ASCENDING' | 'DECENDING',
+	orderingType: 'ASCENDING' | 'DESCENDING',
 ) {
 	let orderingModifer = orderingType === 'ASCENDING' ? 1 : -1;
 	switch (orderingKey) {
@@ -511,6 +524,19 @@ export function orderTasks(
 				return (aDate - bDate) * orderingModifer;
 			});
 
+			break;
+
+		case 'COMPLETION_DATE':
+			tasks.sort((a, b) => {
+				if (!a.completionDate && !b.completionDate) return 0;
+				if (!a.completionDate) return 1 * orderingModifer;
+				if (!b.completionDate) return -1 * orderingModifer;
+
+				return (
+					(a.completionDate!.getTime() - b.completionDate!.getTime()) *
+					orderingModifer
+				);
+			});
 			break;
 
 		default:
