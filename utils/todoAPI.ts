@@ -111,8 +111,8 @@ export async function completeTask({
 	task,
 	todoDir,
 }: WriteTaskFunctionArgs): Promise<void> {
-	const todoFile: string = path.join(todoDir, 'todo.txt');
-	const doneFile: string = path.join(todoDir, 'done.txt');
+	const todoFile: string = getTodoFile(todoDir);
+	const doneFile: string = getDoneFile(todoDir);
 
 	try {
 		// Delete from todo.txt
@@ -129,6 +129,20 @@ export async function completeTask({
 		await fs.appendFile(doneFile, serializeTask(task), 'utf-8');
 	} catch (err) {
 		console.error(`completeTask: Failed to write to file ${doneFile}`);
+		throw err;
+	}
+}
+
+export async function deleteTask({
+	task,
+	todoDir,
+}: WriteTaskFunctionArgs): Promise<void> {
+	const file = task.completed ? getDoneFile(todoDir) : getTodoFile(todoDir);
+	try {
+		// Delete from todo.txt
+		await deleteLine(file, task.line);
+	} catch (err) {
+		console.error(`deleteTask: Failed to write to file ${file}`);
 		throw err;
 	}
 }

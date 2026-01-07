@@ -1,11 +1,9 @@
 import { Action, ActionPanel, Form, getPreferenceValues, Icon, LaunchProps, List, useNavigation } from "@raycast/api"
-import { FilterType, GROUPING_KEYS, GroupingKey, ORDERING_KEYS, OrderingKey, Task, TaskBuckets, TaskSearchFilter, } from '../utils/types'
-import { getTasks, writeTask, } from "../utils/todoAPI"
-import { useEffect, useMemo, useState } from "react"
-import { FormValidation, MutatePromise, useForm, usePromise } from "@raycast/utils"
+import { FilterType, GROUPING_KEYS, GroupingKey, ORDERING_KEYS, OrderingKey, TaskBuckets, TaskSearchFilter, } from '../utils/types'
+import { getTasks, } from "../utils/todoAPI"
+import { useMemo, useState } from "react"
+import { usePromise } from "@raycast/utils"
 import { filterTasks, groupTasks, parseLine, parseSearchQuery, reduceSet, satisfiesFilter } from "../utils/helpers"
-import { CreateTaskArguments } from "./create-new-task"
-import Fuse from "fuse.js"
 import TaskListView from "../components/TaskListView"
 import DropdownStateChangeLayer from "../components/DropdownStateChangeLayer"
 import CreateTaskLayer from "../components/CreateTaskLayer"
@@ -20,7 +18,6 @@ export default function main() {
 	const [groupingKey, setGroupingKey] = useState<GroupingKey>('PRIORITY')
 	const [orderingKey, setOrderingKey] = useState<OrderingKey | null>(null)
 	const [sortingOrder, setSortingOrder] = useState<'ASCENDING' | 'DESCENDING'>('ASCENDING')
-
 
 	const getTasksFilter: TaskSearchFilter = { completed: false }
 
@@ -90,7 +87,8 @@ export default function main() {
 		}
 		isLoading={isLoading}>
 
-		<TaskListView buckets={filteredBuckets} globalActions={globalActions} />
+		<TaskListView buckets={filteredBuckets} globalActions={globalActions}
+			mutateTasks={mutate} taskActions={{ complete: true, edit: true, delete: true }} />
 
 		<List.EmptyView
 			title="No tasks"
@@ -100,5 +98,6 @@ export default function main() {
 				</ActionPanel>
 			}
 		/>
+
 	</List>
 }
