@@ -1,3 +1,19 @@
+export const GROUPING_KEYS = [
+	'PRIORITY',
+	'CREATION_DATE',
+	'COMPLETION_DATE',
+	'DUE_DATE',
+	'PROJECT',
+	'CONTEXT',
+];
+
+export const ORDERING_KEYS = [
+	'PRIORITY',
+	'CREATION_DATE',
+	'COMPLETION_DATE',
+	'DUE_DATE',
+];
+
 export interface Task {
 	line: number;
 	completed?: boolean;
@@ -63,11 +79,3 @@ export type OrderingKey =
 	| 'CREATION_DATE'
 	| 'COMPLETION_DATE'
 	| 'DUE_DATE';
-
-export type DropdownStateChangeLayerProps<T> = {
-	setState: React.Dispatch<React.SetStateAction<T>>;
-	options: T[];
-	optionStrings: string[];
-	initialValue?: string;
-	valueTitle: string;
-};
