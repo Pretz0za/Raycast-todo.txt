@@ -266,11 +266,14 @@ export function filterTasks(
 	tasks: Task[] | undefined,
 	query: string,
 	filterType: FilterType,
-): Task[] {
-	if (!tasks) return [];
-	if (!query) return tasks;
+	enableFzf: boolean,
+): { tasks: Task[]; search: 'fzf' | 'exact' } {
+	if (!tasks) return { tasks: [], search: 'exact' };
+	if (!query) return { tasks: tasks, search: 'exact' };
 	let newFilter = parseSearchQuery(query);
 	let results: Task[] = [];
+	let fzf = false;
+
 	if (
 		newFilter.contexts.length ||
 		Object.keys(newFilter.meta).length ||
@@ -280,7 +283,8 @@ export function filterTasks(
 			satisfiesFilter(task, newFilter, filterType),
 		);
 	}
-	if (results.length === 0) {
+
+	if (results.length === 0 && enableFzf) {
 		const fuse = new Fuse(tasks, {
 			threshold: 0.4,
 			keys: ['contexts', 'projects', 'meta', 'body'],
@@ -288,9 +292,10 @@ export function filterTasks(
 		results = fuse.search(query).map((result) => {
 			return result.item;
 		});
+		fzf = true;
 	}
 
-	return results;
+	return { tasks: results, search: fzf ? 'fzf' : 'exact' };
 }
 
 export function groupTasks(

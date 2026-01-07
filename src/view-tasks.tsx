@@ -34,10 +34,14 @@ export default function main() {
 	const filteredBuckets = useMemo(
 		() => {
 			let output: TaskBuckets = { bucketOrder: taskBuckets.bucketOrder, buckets: {} }
+			let enableFzf = true;
+
 			for (let bucket of taskBuckets.bucketOrder) {
-				output.buckets[bucket] =
-					filterTasks(taskBuckets.buckets[bucket], query, filterType)
+				let out = filterTasks(taskBuckets.buckets[bucket], query, filterType, enableFzf)
+				output.buckets[bucket] = out.tasks
+				if (out.search === 'exact') enableFzf = false
 			}
+
 			return output
 		}
 		, [taskBuckets, query, filterType]
@@ -45,7 +49,8 @@ export default function main() {
 
 	const globalActions = [
 		<Action.Push title="Add Task"
-			target={<CreateTaskLayer onSubmit={async () => { await revalidate() }} />} />,
+			target={<CreateTaskLayer onSubmit={async () => { await revalidate() }} />}
+		/>,
 
 		<Action.Push
 			title="Change Grouping Key"
@@ -85,7 +90,7 @@ export default function main() {
 		}
 		isLoading={isLoading}>
 
-		<TaskListView buckets={taskBuckets} globalActions={globalActions} />
+		<TaskListView buckets={filteredBuckets} globalActions={globalActions} />
 
 		<List.EmptyView
 			title="No tasks"
